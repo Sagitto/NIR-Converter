@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIR Absorbance to Reflectance Converter</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+    color: #16213e;
+  }
+  .subtitle {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    padding: 28px 32px;
+    width: 100%;
+    max-width: 720px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    color: #16213e;
+    border-bottom: 2px solid #e8e8e8;
+    padding-bottom: 8px;
+  }
+  .drop-zone {
+    border: 2px dashed #b0b8c8;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fafbfc;
+    color: #666;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: #4a7cff;
+    background: #f0f4ff;
+    color: #4a7cff;
+  }
+  .drop-zone input { display: none; }
+  .drop-zone .icon { font-size: 2.2rem; margin-bottom: 8px; }
+  .file-info {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #f0faf0;
+    border-radius: 6px;
+    border-left: 4px solid #4caf50;
+    font-size: 0.9rem;
+  }
+  .file-info .label { font-weight: 600; color: #333; }
+  .file-info .detail { color: #555; margin-top: 4px; }
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.92rem;
+    cursor: pointer;
+  }
+  .options input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #4a7cff;
+  }
+  .btn {
+    display: inline-block;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: #4a7cff;
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) { background: #3a66dd; }
+  .btn-success {
+    background: #4caf50;
+    color: #fff;
+  }
+  .btn-success:hover:not(:disabled) { background: #43a047; }
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin-top: 12px;
+  }
+  th, td {
+    padding: 6px 10px;
+    border: 1px solid #e0e0e0;
+    text-align: right;
+  }
+  th {
+    background: #f5f7fa;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  .table-wrap {
+    max-height: 400px;
+    overflow: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-top: 12px;
+  }
+  .table-wrap table { margin-top: 0; }
+  .table-wrap th, .table-wrap td { border-top: none; }
+  .table-wrap tr:first-child th { border-top: 1px solid #e0e0e0; }
+  .hidden { display: none; }
+  .error {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: #fdecea;
+    color: #c62828;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 20px;
+    font-size: 0.9rem;
+  }
+  .meta-grid .label { color: #888; }
+  .meta-grid .value { font-weight: 600; }
+</style>
+</head>
+<body>
+
+<img src="Sagitto_Transparent.png" alt="Sagitto" style="height:60px;margin-bottom:16px;">
+<h1>NIR Absorbance to Reflectance Converter</h1>
+<p class="subtitle">Upload a spectrometer JSON file, convert absorbance to reflectance, and download as CSV</p>
+
+<!-- Upload Card -->
+<div class="card">
+  <h2>1. Upload JSON File</h2>
+  <div class="drop-zone" id="dropZone">
+    <div class="icon">&#128194;</div>
+    <div>Drag &amp; drop your JSON file here, or <strong>click to browse</strong></div>
+    <input type="file" id="fileInput" accept=".json">
+  </div>
+  <div id="fileInfo" class="file-info hidden"></div>
+  <div id="errorMsg" class="error hidden"></div>
+</div>
+
+<!-- Options Card -->
+<div class="card hidden" id="optionsCard">
+  <h2>2. Conversion Options</h2>
+  <div class="options">
+    <label>
+      <span style="font-weight:600;margin-right:4px">Output format:</span>
+    </label>
+    <label>
+      <input type="radio" name="outputMode" value="reflectance" checked>
+      Reflectance
+    </label>
+    <label>
+      <input type="radio" name="outputMode" value="absorbance">
+      Absorbance (raw)
+    </label>
+  </div>
+  <div class="options" style="margin-top:8px">
+    <label>
+      <input type="checkbox" id="chkAverage" checked>
+      <span id="avgLabel">Include average reflectance across all scans</span>
+    </label>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" id="btnConvert">Convert to Reflectance</button>
+  </div>
+</div>
+
+<!-- Results Card -->
+<div class="card hidden" id="resultsCard">
+  <h2>3. Results</h2>
+  <div class="actions">
+    <button class="btn btn-success" id="btnDownload">Download CSV</button>
+  </div>
+  <div class="table-wrap" id="tableWrap"></div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const errorMsg = document.getElementById('errorMsg');
+const optionsCard = document.getElementById('optionsCard');
+const resultsCard = document.getElementById('resultsCard');
+const btnConvert = document.getElementById('btnConvert');
+const btnDownload = document.getElementById('btnDownload');
+const chkAverage = document.getElementById('chkAverage');
+const avgLabel = document.getElementById('avgLabel');
+const tableWrap = document.getElementById('tableWrap');
+
+let parsedData = null;
+let csvContent = '';
+
+// Update labels when output mode changes
+document.querySelectorAll('input[name="outputMode"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const mode = document.querySelector('input[name="outputMode"]:checked').value;
+    const label = mode === 'reflectance' ? 'reflectance' : 'absorbance';
+    avgLabel.textContent = 'Include average ' + label + ' across all scans';
+    btnConvert.textContent = mode === 'reflectance' ? 'Convert to Reflectance' : 'Export Absorbance';
+    resultsCard.classList.add('hidden');
+  });
+});
+
+// Drop zone events
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.classList.remove('hidden');
+  fileInfo.classList.add('hidden');
+  optionsCard.classList.add('hidden');
+  resultsCard.classList.add('hidden');
+}
+
+function handleFile(file) {
+  errorMsg.classList.add('hidden');
+  resultsCard.classList.add('hidden');
+
+  if (!file.name.toLowerCase().endsWith('.json')) {
+    return showError('Please upload a .json file.');
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.wavelengths || !data.samples) {
+        return showError('Invalid file: missing "wavelengths" or "samples" fields.');
+      }
+      parsedData = data;
+      const numScans = Object.keys(data.samples).length;
+      const numWavelengths = Object.keys(data.wavelengths).length;
+
+      fileInfo.innerHTML =
+        '<div class="label">File loaded: ' + file.name + '</div>' +
+        '<div class="meta-grid" style="margin-top:8px">' +
+          '<span class="label">Sample ID:</span><span class="value">' + (data.sample_id || 'N/A') + '</span>' +
+          '<span class="label">Timestamp:</span><span class="value">' + (data.timestamp || 'N/A') + '</span>' +
+          '<span class="label">Serial:</span><span class="value">' + (data.serial || 'N/A') + '</span>' +
+          '<span class="label">Scans:</span><span class="value">' + numScans + '</span>' +
+          '<span class="label">Wavelengths:</span><span class="value">' + numWavelengths + '</span>' +
+        '</div>';
+      fileInfo.classList.remove('hidden');
+      optionsCard.classList.remove('hidden');
+    } catch (err) {
+      showError('Failed to parse JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+btnConvert.addEventListener('click', () => {
+  if (!parsedData) return;
+
+  const mode = document.querySelector('input[name="outputMode"]:checked').value;
+  const isReflectance = mode === 'reflectance';
+  const label = isReflectance ? 'Reflectance' : 'Absorbance';
+
+  const wavelengthKeys = Object.keys(parsedData.wavelengths).sort((a, b) => Number(a) - Number(b));
+  const sampleKeys = Object.keys(parsedData.samples).sort((a, b) => Number(a) - Number(b));
+  const includeAvg = chkAverage.checked && sampleKeys.length > 1;
+
+  // Build header
+  const headers = ['Wavelength (nm)'];
+  sampleKeys.forEach(k => headers.push('Scan ' + k + ' ' + label));
+  if (includeAvg) headers.push('Average ' + label);
+
+  // Build rows
+  const rows = [];
+  wavelengthKeys.forEach(wk => {
+    const wl = parsedData.wavelengths[wk];
+    const row = [wl];
+    let sum = 0;
+    sampleKeys.forEach(sk => {
+      const absorbance = parseFloat(parsedData.samples[sk][wk]);
+      const value = isReflectance ? Math.pow(10, -absorbance) : absorbance;
+      row.push(value);
+      sum += value;
+    });
+    if (includeAvg) {
+      row.push(sum / sampleKeys.length);
+    }
+    rows.push(row);
+  });
+
+  // Build CSV
+  const csvRows = [headers.join(',')];
+  rows.forEach(r => {
+    csvRows.push(r.map((v, i) => i === 0 ? v : v.toFixed(8)).join(','));
+  });
+  csvContent = csvRows.join('\n');
+
+  // Build preview table
+  let html = '<table><thead><tr>';
+  headers.forEach(h => html += '<th>' + h + '</th>');
+  html += '</tr></thead><tbody>';
+  const previewRows = rows.slice(0, 20);
+  previewRows.forEach(r => {
+    html += '<tr>';
+    r.forEach((v, i) => {
+      html += '<td>' + (i === 0 ? parseFloat(v).toFixed(4) : v.toFixed(8)) + '</td>';
+    });
+    html += '</tr>';
+  });
+  if (rows.length > 20) {
+    html += '<tr><td colspan="' + headers.length + '" style="text-align:center;color:#888;font-style:italic">... ' + (rows.length - 20) + ' more rows ...</td></tr>';
+  }
+  html += '</tbody></table>';
+  tableWrap.innerHTML = html;
+
+  resultsCard.classList.remove('hidden');
+});
+
+btnDownload.addEventListener('click', () => {
+  if (!csvContent) return;
+  const mode = document.querySelector('input[name="outputMode"]:checked').value;
+  const suffix = mode === 'reflectance' ? '_reflectance' : '_absorbance';
+  const filename = (parsedData.sample_id || 'output').replace(/[^a-zA-Z0-9_\- ]/g, '') + suffix + '.csv';
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+</script>
+
+</body>
+</html>
