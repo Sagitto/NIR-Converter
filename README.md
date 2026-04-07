@@ -2,5 +2,3 @@ This repository contains the file **<a href="https://github.com/Sagitto/NIR-Conv
 
 These spectral files contain absorbance values in JSON format when saved from the app. The NIR Converter provides a very quick and easy way to convert single spectral files from JSON to csv format, either as absorbance or reflectance. 
 In addition there is the option to add an average column, in the case of batch scans.
-
-To download NIR_Converter.html and the example files in one compressed file, <a href="https://github.com/Sagitto/NIR-Converter/blob/master/NIR_converter.zip" download>click here</a> and press the Down Arrow in the upper right of the page. It will say "Download raw file" when you hover a mouse pointer over it.
